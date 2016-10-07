@@ -1,0 +1,3 @@
+gradlew %* publish
+gradlew -p examples %* build
+

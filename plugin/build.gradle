@@ -1,0 +1,65 @@
+repositories {
+    jcenter()
+}
+
+apply plugin: 'groovy'
+apply plugin: 'maven-publish'
+
+group 'gs.utils.gradle.plugins'
+version '0.0.1-SNAPSHOT'
+
+dependencies {
+    compile gradleApi()
+
+    compile 'com.sun.jersey:jersey-servlet:1.19.2'
+    compile ('org.jvnet.ws.wadl:wadl-core:1.1.6') {
+        exclude group: 'org.glassfish.jersey.core'
+    }
+    compile 'javax.servlet:servlet-api:2.5'
+}
+
+task sourcesJar(type: Jar, dependsOn:classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn:groovydoc) {
+    classifier  'javadoc'
+    from groovydoc.destinationDir
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+}
+
+def localRepoDir = "${rootProject.buildDir}/repo"
+
+clean {
+    delete localRepoDir
+}
+
+publishing {
+    repositories {
+        maven {
+            url localRepoDir
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            artifactId 'gradle-jersey1wadl-plugin'
+
+            artifact sourcesJar {
+                classifier sourcesJar.classifier
+            }
+            artifact javadocJar {
+                classifier javadocJar.classifier
+            }
+        }
+    }
+}
+
+publish.dependsOn publishToMavenLocal

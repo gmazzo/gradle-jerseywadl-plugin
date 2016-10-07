@@ -1,0 +1,2 @@
+include ':wadl2client'
+include ':webapp'

@@ -1,0 +1,10 @@
+allprojects {
+
+    repositories {
+        jcenter()
+    }
+
+    group 'gs.utils.gradle.plugins'
+    version '0.0.1-SNAPSHOT'
+
+}

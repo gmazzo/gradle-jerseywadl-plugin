@@ -1,0 +1,12 @@
+buildscript {
+
+    repositories {
+        maven { url file('../build/repo') }
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'gs.utils.gradle.plugins:gradle-jersey1wadl-plugin:0.0.1-SNAPSHOT'
+    }
+
+}

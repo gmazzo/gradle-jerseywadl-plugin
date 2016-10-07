@@ -1,0 +1,19 @@
+repositories {
+    jcenter()
+}
+
+apply plugin: 'war'
+apply plugin: 'jersey1wadl'
+
+wadlGen {
+    endpointURI 'https://github.com/jersey/'
+}
+
+dependencies {
+    compile 'com.sun.jersey:jersey-servlet:1.19.2'
+    compile 'com.sun.jersey:jersey-json:1.19.2'
+    compile 'com.sun.jersey.contribs:jersey-multipart:1.19.2'
+
+    testCompile 'com.sun.jersey.jersey-test-framework:jersey-test-framework-grizzly2:1.19.2'
+    testCompile 'com.sun.jersey.jersey-test-framework:jersey-test-framework-external:1.19.2'
+}
