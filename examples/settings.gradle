@@ -1,2 +1,3 @@
 include ':wadl2client'
 include ':webapp'
+include ':webapp-client'

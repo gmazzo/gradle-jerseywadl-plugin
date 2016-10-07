@@ -1,6 +1,2 @@
-repositories {
-    jcenter()
-}
-
 apply plugin: 'java'
 apply plugin: 'jersey1wadl'

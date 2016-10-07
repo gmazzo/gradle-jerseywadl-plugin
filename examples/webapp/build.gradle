@@ -1,12 +1,12 @@
-repositories {
-    jcenter()
-}
-
 apply plugin: 'war'
 apply plugin: 'jersey1wadl'
 
 wadlGen {
-    endpointURI 'https://github.com/jersey/'
+    endpointURI 'https://github.com/bintray/gradle-bintray-plugin'
+}
+
+jerseyGen {
+    customClassNames = [ 'https://github.com/bintray/gradle-bintray-plugin' : 'WepAppClient' ]
 }
 
 dependencies {

@@ -121,7 +121,6 @@ public class WadlGenPlugin implements Plugin<Project> {
         project.configurations {
             jerseyClient {
                 extendsFrom jerseyClientCompile
-                transitive true
             }
         }
         project.artifacts {
