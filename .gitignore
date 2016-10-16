@@ -4,5 +4,5 @@
 .DS_Store
 build
 capture
-/local.properties
+local.properties
 *.apk
