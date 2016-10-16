@@ -1,12 +1,12 @@
 apply plugin: 'war'
-apply plugin: 'jersey1wadl'
+apply plugin: 'jerseyWadl'
 
 wadlGen {
-    endpointURI 'https://github.com/bintray/gradle-bintray-plugin'
+    endpointURI 'https://github.com/gmazzo/gradle-jerseywadl-plugin'
 }
 
 jerseyGen {
-    customClassNames = [ 'https://github.com/bintray/gradle-bintray-plugin' : 'WepAppClient' ]
+    customClassNames = [ 'https://github.com/gmazzo/gradle-jerseywadl-plugin' : 'WebAppClient' ]
 }
 
 dependencies {

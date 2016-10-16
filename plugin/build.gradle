@@ -12,9 +12,8 @@ dependencies {
     compile gradleApi()
 
     compile 'com.sun.jersey:jersey-servlet:1.19.2'
-    compile ('org.jvnet.ws.wadl:wadl-core:1.1.6') {
-        exclude group: 'org.glassfish.jersey.core'
-    }
+    compile 'org.glassfish.jersey.containers:jersey-container-servlet-core:2.23.2'
+    compile 'org.jvnet.ws.wadl:wadl-core:1.1.6'
     compile 'javax.servlet:servlet-api:2.5'
 }
 

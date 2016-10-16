@@ -1,27 +1,20 @@
 package gs.utils.gradle.plugins.wadl.tasks
 
-import com.sun.jersey.api.core.DefaultResourceConfig
-import com.sun.jersey.api.core.ResourceConfig
-import com.sun.jersey.api.model.AbstractResource
-import com.sun.jersey.api.uri.UriComponent
 import com.sun.jersey.core.util.MultivaluedMapImpl
 import com.sun.jersey.core.util.UnmodifiableMultivaluedMap
-import com.sun.jersey.server.impl.modelapi.annotation.IntrospectionModeller
-import com.sun.jersey.server.impl.wadl.WadlApplicationContextImpl
-import com.sun.jersey.server.wadl.ApplicationDescription
-import com.sun.jersey.spi.container.servlet.ServletContainer
-import com.sun.jersey.spi.container.servlet.WebServletConfig
 import org.apache.commons.lang.Validate
 import org.gradle.api.file.FileCollection
 import org.gradle.api.internal.ConventionTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
-import javax.ws.rs.core.*
+import javax.ws.rs.core.MultivaluedMap
+import javax.ws.rs.core.PathSegment
+import javax.ws.rs.core.UriBuilder
+import javax.ws.rs.core.UriInfo
 import javax.xml.bind.JAXBContext
-import javax.xml.bind.JAXBException
 import javax.xml.bind.Marshaller
 import java.util.logging.Logger
 
@@ -34,71 +27,54 @@ public class WadlGenTask extends ConventionTask {
     @Input
     public String applicationClass;
 
+    @Input
+    public boolean jersey2;
+
+    @Input
+    public String wadlFileName;
+
     @InputFiles
     public FileCollection applicationClasspath;
 
-    @OutputFile
-    public File wadlFile;
+    @OutputDirectory
+    public File wadlOutput;
 
     @TaskAction
-    public void generateWADLFile() throws JAXBException {
+    public void generateWADLFile() throws Exception {
         Validate.notNull(endpointURI, "No default endpoint provided");
         Validate.notNull(applicationClass, "No applicationClass was provided");
-        Validate.notNull(wadlFile, "No destination WADL file provided");
+        Validate.notNull(wadlOutput, "No destination WADL folder provided");
+        Validate.notNull(wadlFileName, "No destination WADL file name provided");
 
-        LOGGER.info("Generating WADL for " + endpointURI + ", file " + wadlFile);
+        LOGGER.info("Generating WADL for " + endpointURI + ", file " + new File(wadlOutput, wadlFileName));
 
-        UriInfo uriInfo = new UriInfoImpl(endpointURI);
-        ResourceConfig resourceConfig = buildResourceConfig();
-
-        Set<AbstractResource> roots = new LinkedHashSet<>();
-        for (Object resource : resourceConfig.getRootResourceSingletons()) {
-            AbstractResource ar = IntrospectionModeller.createResource(resource.getClass());
-
-            LOGGER.info("Adding resource " + ar);
-            roots.add(ar);
+        def classpath = applicationClasspath.collect {
+            it.toURI().toURL()
         }
-        for (Class<?> resourceClass : resourceConfig.getRootResourceClasses()) {
-            AbstractResource ar = IntrospectionModeller.createResource(resourceClass);
-
-            LOGGER.info("Adding resource " + ar);
-            roots.add(ar);
-        }
-
-        WadlApplicationContextImpl context = new WadlApplicationContextImpl(roots, resourceConfig, null);
-        ApplicationDescription desc = context.getApplication(uriInfo);
-        com.sun.research.ws.wadl.Application application = desc.getApplication();
-
-        wadlFile.getParentFile().mkdirs();
-
-        JAXBContext jaxbContext = JAXBContext.newInstance(application.getClass());
-        Marshaller marshaller = jaxbContext.createMarshaller();
-        marshaller.marshal(application, wadlFile);
-    }
-
-    private ResourceConfig buildResourceConfig() {
-        def classpath = applicationClasspath.collect { it.toURI().toURL() }
         def classLoader = new URLClassLoader(
                 classpath.toArray(new URL[classpath.size()]),
                 Thread.currentThread().getContextClassLoader())
 
         try {
-            def appClass = classLoader.loadClass(applicationClass)
+            Class<?> appClass = classLoader.loadClass(applicationClass)
 
-            if (Application.class.isAssignableFrom(appClass)) {
-                Application app = appClass.newInstance();
-                DefaultResourceConfig config = new DefaultResourceConfig();
-                config.add(app)
-                return config;
+            wadlOutput.mkdirs()
 
-            } else if (ServletContainer.isAssignableFrom(appClass)) {
-                ServletContainer app = appClass.newInstance()
-                WebServletConfig config = new WebServletConfig(app)
-                return app.getDefaultResourceConfig(Collections.emptyMap(), config)
+            Generator generator = jersey2 ? new Jersey2Generator() : new Jersey1Generator();
+            generator.buildApplication(this, appClass, { object, path ->
+                File outLocation = new File(wadlOutput, path ?: wadlFileName);
 
-            } else {
-                throw new IllegalArgumentException("applicationClass[$applicationClass] is not an instance of ${Application.class}")
-            }
+                if (object instanceof byte[]) {
+                    outLocation.withOutputStream {
+                        it.write((byte[]) object)
+                    }
+
+                } else {
+                    JAXBContext jaxbContext = JAXBContext.newInstance(object.class);
+                    Marshaller marshaller = jaxbContext.createMarshaller();
+                    marshaller.marshal(object, outLocation);
+                }
+            })
 
         } catch (ClassNotFoundException e) {
             LOGGER.severe("Could not instantiate application class $applicationClass with classpath: $classpath")
@@ -108,9 +84,21 @@ public class WadlGenTask extends ConventionTask {
 
 }
 
+interface Generator {
+
+    void buildApplication(WadlGenTask task, Class<?> appClass, Callback callback) throws Exception
+
+    interface Callback {
+
+        void storeObject(Object object, String path);
+
+    }
+
+}
+
 class UriInfoImpl implements UriInfo {
-    private static
-    final UnmodifiableMultivaluedMap<String, String> EMPTY_MULTY_MAP = new UnmodifiableMultivaluedMap<>(new MultivaluedMapImpl());
+    private static final UnmodifiableMultivaluedMap<String, String> EMPTY_MULTY_MAP =
+            new UnmodifiableMultivaluedMap<>(new MultivaluedMapImpl());
     private final URI uri;
 
     UriInfoImpl(URI uri) {
@@ -200,6 +188,16 @@ class UriInfoImpl implements UriInfo {
     @Override
     public List<Object> getMatchedResources() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public URI resolve(URI uri) {
+        return uri;
+    }
+
+    @Override
+    public URI relativize(URI uri) {
+        return uri;
     }
 
 }

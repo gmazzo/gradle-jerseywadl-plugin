@@ -26,6 +26,9 @@ public class JerseyClientGenTask extends ConventionTask {
     public String packageName;
 
     @Input
+    public boolean jersey2 = false;
+
+    @Input
     public boolean autoPackage = true;
 
     @Input
@@ -46,7 +49,7 @@ public class JerseyClientGenTask extends ConventionTask {
 
         Wadl2Java.Parameters parameters = new Wadl2Java.Parameters();
         parameters.setPkg(packageName);
-        parameters.setGenerationStyle(Wadl2Java.STYLE_JERSEY1X);
+        parameters.setGenerationStyle(jersey2 ? Wadl2Java.STYLE_JAXRS20 : Wadl2Java.STYLE_JERSEY1X);
         parameters.setAutoPackage(autoPackage);
         parameters.setCodeWriter(new FileCodeWriter(outputDir));
         parameters.setRootDir(outputDir.toURI());

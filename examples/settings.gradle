@@ -1,3 +1,5 @@
-include ':wadl2client'
-include ':webapp'
-include ':webapp-client'
+include ':1x-wadl2client'
+include ':1x-webapp'
+include ':1x-webapp-client'
+include ':2x-webapp'
+include ':2x-webapp-client'
