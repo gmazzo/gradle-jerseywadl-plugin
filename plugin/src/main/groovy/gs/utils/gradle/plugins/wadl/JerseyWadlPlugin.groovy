@@ -31,11 +31,6 @@ public class JerseyWadlPlugin implements Plugin<Project> {
             }
         }
 
-        project.dependencies {
-            jerseyClientCompile 'com.sun.jersey:jersey-client:1.19.2'
-            jerseyClientCompile 'org.glassfish.jersey.containers:jersey-container-servlet-core:2.23.2'
-        }
-
         createPackJerseyClientTask(project)
 
         project.processJerseyClientResources.dependsOn wadlTask
@@ -118,6 +113,15 @@ public class JerseyWadlPlugin implements Plugin<Project> {
             customClassNames = jerseyGen.customClassNames
             customizationsFiles = jerseyGen.customizationsFiles
         }
+        clientTask.doLast {
+            if (jerseyGen.includeJerseyClientDependency) {
+                project.dependencies.add('jerseyClientCompile',
+                        jerseyGen.customJerseyClientDependency ?: clientTask.jersey2 ?
+                                'org.glassfish.jersey.containers:jersey-container-servlet-core:2.23.2' :
+                                'com.sun.jersey:jersey-client:1.19.2'
+                )
+            }
+        }
         clientTask.dependsOn wadlTask
         return clientTask
     }
@@ -167,5 +171,9 @@ class JerseyGenPluginExtension {
     Map<String, String> customClassNames = new HashMap<>();
 
     FileCollection customizationsFiles = new SimpleFileCollection();
+
+    String customJerseyClientDependency;
+
+    boolean includeJerseyClientDependency = true;
 
 }
