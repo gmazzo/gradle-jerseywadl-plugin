@@ -117,7 +117,7 @@ public class JerseyWadlPlugin implements Plugin<Project> {
             if (jerseyGen.includeJerseyClientDependency) {
                 project.dependencies.add('jerseyClientCompile',
                         jerseyGen.customJerseyClientDependency ?: clientTask.jersey2 ?
-                                'org.glassfish.jersey.containers:jersey-container-servlet-core:2.23.2' :
+                                'org.glassfish.jersey.core:jersey-client:2.23.2' :
                                 'com.sun.jersey:jersey-client:1.19.2'
                 )
             }
