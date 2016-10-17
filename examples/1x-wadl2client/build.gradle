@@ -1,2 +1,2 @@
 apply plugin: 'java'
-apply plugin: 'jersey1Wadl'
+apply plugin: 'jersey1wadl'

@@ -1,5 +1,5 @@
 apply plugin: 'war'
-apply plugin: 'jersey2Wadl'
+apply plugin: 'jersey2wadl'
 
 wadlGen {
     endpointURI 'https://github.com/gmazzo/gradle-jerseywadl-plugin'
