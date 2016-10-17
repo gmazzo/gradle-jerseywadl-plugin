@@ -9,7 +9,7 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.internal.file.collections.SimpleFileCollection
 import org.gradle.jvm.tasks.Jar
 
-public class JerseyWadlPlugin implements Plugin<Project> {
+public abstract class JerseyWadlPlugin implements Plugin<Project> {
     final static String GROUP_NAME = 'Jersey WADL & Client Generation'
 
     WadlGenPluginExtension wadlGen
@@ -17,6 +17,12 @@ public class JerseyWadlPlugin implements Plugin<Project> {
     WadlGenTask wadlTask
     JerseyClientGenTask clientTask
     Jar packClientTask
+
+    protected abstract String getTargetServletClass();
+
+    protected abstract String getDefaultClientDependency();
+
+    protected abstract Class<? extends WadlGenTask> getWadlGenTaskType();
 
     void apply(Project project) {
         createConfigureWadlGenTask(project)
@@ -36,6 +42,14 @@ public class JerseyWadlPlugin implements Plugin<Project> {
         project.processJerseyClientResources.dependsOn wadlTask
         project.compileJerseyClientJava.dependsOn clientTask
 
+        project.afterEvaluate {
+            if (jerseyGen.includeJerseyClientDependency) {
+                project.dependencies {
+                    jerseyClientCompile jerseyGen.customJerseyClientDependency ?: getDefaultClientDependency()
+                }
+            }
+        }
+
         project.clean << {
             delete wadlTask.outputs
             delete clientTask.outputs
@@ -54,17 +68,15 @@ public class JerseyWadlPlugin implements Plugin<Project> {
                 retrieveAppTask.onlyIf { !wadlTask.applicationClass && !webXmlFile.isEmpty() }
                 retrieveAppTask << {
                     def file = webXmlFile.singleFile
+                    def targetServlet = getTargetServletClass()
                     def xml = new XmlSlurper().parse(file)
                     xml.declareNamespace('': 'http://java.sun.com/xml/ns/javaee')
 
-                    def appParam = xml.'*'.'init-param'.find({
-                        it.'param-name'.toString().equals('javax.ws.rs.Application')
-                    })
-                    def servletClass = appParam.'..'.'servlet-class'.toString()
-
-                    wadlTask.jersey2 = clientTask.jersey2 =
-                            'org.glassfish.jersey.servlet.ServletContainer'.equals(servletClass)
-                    wadlGen.applicationClass = appParam.'param-value'.toString()
+                    wadlGen.applicationClass = xml.servlet
+                            .find({ it.'servlet-class'.text().equals(targetServlet) })
+                            .'init-param'
+                            .find({ it.'param-name'.text().equals('javax.ws.rs.Application') })
+                            .'param-value'
                 }
                 retrieveAppTask.dependsOn project.processResources
                 wadlTask.dependsOn retrieveAppTask
@@ -80,7 +92,7 @@ public class JerseyWadlPlugin implements Plugin<Project> {
         wadlGen.wadlOutputFolder = new File(project.buildDir, 'generated/wadl')
         wadlGen.wadlOutputFileName = 'application.wadl'
 
-        wadlTask = project.task('generateWADL', type: WadlGenTask, group: GROUP_NAME, description: 'Generates a WADL file from the Jersey app class');
+        wadlTask = project.task('generateWADL', type: getWadlGenTaskType(), group: GROUP_NAME, description: 'Generates a WADL file from the Jersey app class');
         wadlTask.onlyIf { wadlGen.applicationClass }
         wadlTask.doFirst {
             endpointURI = wadlGen.endpointURI
@@ -104,23 +116,15 @@ public class JerseyWadlPlugin implements Plugin<Project> {
         })
 
         clientTask = project.task('generateJerseyClient', type: JerseyClientGenTask, group: GROUP_NAME, description: 'Generates Jersey client classes');
-        clientTask.onlyIf { jerseyGen.clientPackage }
+        clientTask.onlyIf { !jerseyGen.wadlFiles.empty }
         clientTask.packageName = jerseyGen.clientPackage
+        clientTask.jersey2 = this instanceof Jersey2WadlPlugin;
         clientTask.wadlFiles += jerseyGen.wadlFiles
         clientTask.outputDir = new File(project.buildDir, 'generated/source/jersey')
         clientTask.doFirst {
             packageName = jerseyGen.clientPackage
             customClassNames = jerseyGen.customClassNames
             customizationsFiles = jerseyGen.customizationsFiles
-        }
-        clientTask.doLast {
-            if (jerseyGen.includeJerseyClientDependency) {
-                project.dependencies.add('jerseyClientCompile',
-                        jerseyGen.customJerseyClientDependency ?: clientTask.jersey2 ?
-                                'org.glassfish.jersey.core:jersey-client:2.23.2' :
-                                'com.sun.jersey:jersey-client:1.19.2'
-                )
-            }
         }
         clientTask.dependsOn wadlTask
         return clientTask
@@ -130,6 +134,12 @@ public class JerseyWadlPlugin implements Plugin<Project> {
         packClientTask = project.task('packJerseyClient', type: Jar, group: GROUP_NAME, description: 'Packages the generated Jersey client in a JAR library');
         packClientTask.from project.sourceSets.jerseyClient.output
         packClientTask.classifier 'jerseyClient'
+        packClientTask.onlyIf {
+            !packClientTask.source.asFileTree.matching({
+                exclude 'MANIFEST.MF'
+                include { it.file.exists() }
+            }).empty
+        }
         packClientTask.dependsOn project.jerseyClientClasses
 
         project.configurations {

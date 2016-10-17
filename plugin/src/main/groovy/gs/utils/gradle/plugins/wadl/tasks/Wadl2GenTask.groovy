@@ -1,7 +1,6 @@
 package gs.utils.gradle.plugins.wadl.tasks
 
 import com.sun.research.ws.wadl.Include
-import gs.utils.gradle.plugins.wadl.tasks.Generator.Callback
 import org.glassfish.jersey.server.ApplicationHandler
 import org.glassfish.jersey.server.ExtendedResourceContext
 import org.glassfish.jersey.server.internal.JerseyResourceContext
@@ -12,11 +11,25 @@ import org.glassfish.jersey.servlet.ServletContainer
 import javax.ws.rs.core.Application
 import javax.ws.rs.core.UriInfo
 
-class Jersey2Generator implements Generator {
+public class Wadl2GenTask extends WadlGenTask<com.sun.research.ws.wadl.Application, ApplicationDescription.ExternalGrammar> {
+
+    private static ApplicationHandler getApplicationHandler(Class<?> appClass) {
+        if (Application.class.isAssignableFrom(appClass)) {
+            return new ApplicationHandler(appClass);
+
+        } else if (ServletContainer.class.isAssignableFrom(appClass)) {
+            ServletContainer app = appClass.newInstance();
+            app.init();
+            return app.applicationHandler;
+
+        } else {
+            throw new IllegalArgumentException("applicationClass[$appClass] is not an instance of ${Application.class}")
+        }
+    }
 
     @Override
-    public void buildApplication(WadlGenTask task, Class<?> appClass, Callback callback) throws Exception {
-        UriInfo uriInfo = new UriInfoImpl(task.endpointURI);
+    protected void processApplication(Class<?> appClass) {
+        UriInfo uriInfo = new UriInfoImpl(endpointURI);
         ApplicationHandler handler = getApplicationHandler(appClass);
 
         ExtendedResourceContext resourceContext = handler.serviceLocator.getService(JerseyResourceContext.class);
@@ -31,24 +44,11 @@ class Jersey2Generator implements Generator {
             String path = include.href = include.href.replaceFirst('^application.wadl/', '');
 
             def grammar = desc.getExternalGrammar(path);
-            callback.storeObject(grammar.content, path);
+            storeGrammar(grammar, path)
         }
 
-        callback.storeObject(application, null);
-    }
-
-    private ApplicationHandler getApplicationHandler(Class<?> appClass) {
-        if (Application.class.isAssignableFrom(appClass)) {
-            return new ApplicationHandler(appClass);
-
-        } else if (ServletContainer.class.isAssignableFrom(appClass)) {
-            ServletContainer app = appClass.newInstance();
-            app.init();
-            return app.applicationHandler;
-
-        } else {
-            throw new IllegalArgumentException("applicationClass[$appClass] is not an instance of ${Application.class}")
-        }
+        storeApplication(application)
     }
 
 }
+
